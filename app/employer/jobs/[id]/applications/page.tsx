@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, Mail, Phone, MapPin, Briefcase, Calendar, Download } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Briefcase, Download } from 'lucide-react';
 
 export default function JobApplicationsPage() {
   const router = useRouter();
@@ -179,15 +179,6 @@ export default function JobApplicationsPage() {
                           Experience
                         </div>
                         <div>{application.candidate?.totalExperience} years</div>
-                      </div>
-                    )}
-                    {application.candidate?.noticePeriod !== null && (
-                      <div>
-                        <div className="flex items-center text-muted-foreground mb-1">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          Notice Period
-                        </div>
-                        <div>{application.candidate?.noticePeriod} days</div>
                       </div>
                     )}
                     <div>

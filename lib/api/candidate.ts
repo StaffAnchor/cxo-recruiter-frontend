@@ -5,14 +5,17 @@ export interface CandidateProfile {
   id: string;
   userId: string;
   fullName: string | null;
+  dob: string | null;
+  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY" | null;
   phone: string | null;
   linkedin: string | null;
   photoUrl: string | null;
+  preferredLocations: string[];
   currentCity: string | null;
   totalExperience: number | null;
   currentCTC: number | null;
+  currentAnnualFixedCTC: number | null;
   expectedCTC: number | null;
-  noticePeriod: number | null;
   resumeUrl: string | null;
   skills: CandidateSkill[];
   education: CandidateEducation[];
@@ -61,13 +64,16 @@ export interface CandidateKeyword {
 
 export interface UpdateProfileData {
   fullName?: string;
+  dob?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
   phone?: string;
   linkedin?: string;
+  preferredLocations?: string[];
   currentCity?: string;
   totalExperience?: number;
   currentCTC?: number;
+  currentAnnualFixedCTC?: number;
   expectedCTC?: number;
-  noticePeriod?: number;
 }
 
 export interface AddSkillData {

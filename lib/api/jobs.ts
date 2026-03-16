@@ -47,7 +47,6 @@ export interface JobApplication {
     totalExperience: number;
     currentCTC: number;
     expectedCTC: number;
-    noticePeriod: number;
     resumeUrl: string;
     skills: Array<{ skillName: string }>;
     education: Array<{

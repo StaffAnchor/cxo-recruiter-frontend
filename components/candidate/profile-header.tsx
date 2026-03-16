@@ -7,13 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Camera, Pencil, MapPin, Phone, Linkedin, Briefcase, DollarSign, Clock } from "lucide-react";
+import { Camera, Pencil, MapPin, Phone, Linkedin, Briefcase, DollarSign } from "lucide-react";
 import { updateProfile, uploadPhoto, type CandidateProfile, type UpdateProfileData } from "@/lib/api/candidate";
 import { useToast } from "@/components/ui/use-toast";
 
 interface ProfileHeaderProps {
   profile: CandidateProfile | null;
 }
+
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
 
 export function ProfileHeader({ profile }: ProfileHeaderProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -25,7 +33,6 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
     totalExperience: profile?.totalExperience || 0,
     currentCTC: profile?.currentCTC || 0,
     expectedCTC: profile?.expectedCTC || 0,
-    noticePeriod: profile?.noticePeriod || 0,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -39,9 +46,10 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
       setIsEditOpen(false);
     },
     onError: (error: Error) => {
+      const apiError = error as Error & ApiError;
       toast({
         title: "Error",
-        description: (error as any).response?.data?.message || "Failed to update profile",
+        description: apiError.response?.data?.message || "Failed to update profile",
         variant: "destructive",
       });
     },
@@ -54,9 +62,10 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
       toast({ title: "Success", description: "Photo uploaded successfully" });
     },
     onError: (error: Error) => {
+      const apiError = error as Error & ApiError;
       toast({
         title: "Error",
-        description: (error as any).response?.data?.message || "Failed to upload photo",
+        description: apiError.response?.data?.message || "Failed to upload photo",
         variant: "destructive",
       });
     },
@@ -170,27 +179,15 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
                       placeholder="Mumbai"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="totalExperience">Total Experience (years)</Label>
-                      <Input
-                        id="totalExperience"
-                        type="number"
-                        value={formData.totalExperience}
-                        onChange={(e) => setFormData({ ...formData, totalExperience: parseInt(e.target.value) || 0 })}
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="noticePeriod">Notice Period (days)</Label>
-                      <Input
-                        id="noticePeriod"
-                        type="number"
-                        value={formData.noticePeriod}
-                        onChange={(e) => setFormData({ ...formData, noticePeriod: parseInt(e.target.value) || 0 })}
-                        min="0"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="totalExperience">Total Experience (years)</Label>
+                    <Input
+                      id="totalExperience"
+                      type="number"
+                      value={formData.totalExperience}
+                      onChange={(e) => setFormData({ ...formData, totalExperience: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -256,15 +253,6 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
               Expected CTC
             </div>
             <p className="font-semibold">₹{(profile?.expectedCTC / 100000).toFixed(1)}L</p>
-          </div>
-        )}
-        {profile?.noticePeriod !== null && profile?.noticePeriod !== undefined && (
-          <div className="p-3 border rounded-lg">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Clock className="w-3 h-3" />
-              Notice Period
-            </div>
-            <p className="font-semibold">{profile?.noticePeriod} days</p>
           </div>
         )}
         {profile?.phone && (

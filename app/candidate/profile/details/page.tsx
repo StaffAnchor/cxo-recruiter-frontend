@@ -1,15 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save } from "lucide-react";
 import { getProfile, updateProfile, type UpdateProfileData } from "@/lib/api/candidate";
 import { useToast } from "@/components/ui/use-toast";
+
+const MAJOR_INDIAN_CITIES = [
+  "Mumbai",
+  "Delhi",
+  "Bengaluru",
+  "Hyderabad",
+  "Chennai",
+  "Kolkata",
+  "Pune",
+  "Ahmedabad",
+  "Jaipur",
+  "Surat",
+  "Lucknow",
+  "Kanpur",
+  "Nagpur",
+  "Indore",
+  "Bhopal",
+  "Patna",
+  "Chandigarh",
+  "Bhubaneswar",
+  "Kochi",
+  "Visakhapatnam",
+] as const;
+
+const OTHER_CITY_OPTION = "OTHER";
+
+const CITY_VARIANTS: Record<string, (typeof MAJOR_INDIAN_CITIES)[number]> = {
+  bangalore: "Bengaluru",
+  bengaluru: "Bengaluru",
+  delhi: "Delhi",
+  mumbai: "Mumbai",
+  hyderabad: "Hyderabad",
+  chennai: "Chennai",
+  kolkata: "Kolkata",
+  pune: "Pune",
+  ahmedabad: "Ahmedabad",
+  jaipur: "Jaipur",
+  surat: "Surat",
+  lucknow: "Lucknow",
+  kanpur: "Kanpur",
+  nagpur: "Nagpur",
+  indore: "Indore",
+  bhopal: "Bhopal",
+  patna: "Patna",
+  chandigarh: "Chandigarh",
+  bhubaneswar: "Bhubaneswar",
+  kochi: "Kochi",
+  visakhapatnam: "Visakhapatnam",
+};
+
+const normalizeCurrentCity = (city: string | null | undefined): string => {
+  const trimmedCity = city?.trim() || "";
+  if (!trimmedCity) {
+    return "";
+  }
+
+  const canonicalCity = CITY_VARIANTS[trimmedCity.toLowerCase()];
+  return canonicalCity || trimmedCity;
+};
 
 export default function ProfileDetailsPage() {
   const router = useRouter();
@@ -22,15 +82,100 @@ export default function ProfileDetailsPage() {
   });
 
   const [formData, setFormData] = useState<UpdateProfileData>({
-    fullName: profile?.fullName || "",
-    phone: profile?.phone || "",
-    linkedin: profile?.linkedin || "",
-    currentCity: profile?.currentCity || "",
-    totalExperience: profile?.totalExperience || 0,
-    currentCTC: profile?.currentCTC || 0,
-    expectedCTC: profile?.expectedCTC || 0,
-    noticePeriod: profile?.noticePeriod || 0,
+    fullName: "",
+    dob: "",
+    gender: undefined,
+    phone: "",
+    linkedin: "",
+    preferredLocations: [],
+    currentCity: "",
+    totalExperience: 10,
+    currentCTC: 2000000,
+    currentAnnualFixedCTC: 2000000,
+    expectedCTC: 0,
   });
+  const [selectedCurrentCity, setSelectedCurrentCity] = useState<string>("");
+  const [customCurrentCity, setCustomCurrentCity] = useState<string>("");
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    const normalizedProfileCity = normalizeCurrentCity(profile.currentCity);
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormData({
+      fullName: profile.fullName || "",
+      dob: profile.dob ? profile.dob.split("T")[0] : "",
+      gender: profile.gender || undefined,
+      phone: profile.phone || "",
+      linkedin: profile.linkedin || "",
+      preferredLocations: profile.preferredLocations || [],
+      currentCity: normalizedProfileCity,
+      totalExperience: profile.totalExperience || 10,
+      currentCTC: profile.currentCTC || 2000000,
+      currentAnnualFixedCTC: profile.currentAnnualFixedCTC || 2000000,
+      expectedCTC: profile.expectedCTC || 0,
+    });
+
+    if (!normalizedProfileCity) {
+      setSelectedCurrentCity("");
+      setCustomCurrentCity("");
+    } else if (
+      MAJOR_INDIAN_CITIES.includes(normalizedProfileCity as (typeof MAJOR_INDIAN_CITIES)[number])
+    ) {
+      setSelectedCurrentCity(normalizedProfileCity);
+      setCustomCurrentCity("");
+    } else {
+      setSelectedCurrentCity(OTHER_CITY_OPTION);
+      setCustomCurrentCity(normalizedProfileCity);
+    }
+
+  }, [profile]);
+
+  const handleAddPreferredLocation = (selectedLocation: string) => {
+    if (!selectedLocation) {
+      return;
+    }
+
+    const currentPreferredLocations = formData.preferredLocations || [];
+
+    if (currentPreferredLocations.includes(selectedLocation)) {
+      toast({
+        title: "Already added",
+        description: "This preferred location is already selected.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentPreferredLocations.length >= 5) {
+      toast({
+        title: "Limit reached",
+        description: "You can add up to 5 preferred locations.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      preferredLocations: [...currentPreferredLocations, selectedLocation],
+    });
+  };
+
+  const handleRemovePreferredLocation = (locationToRemove: string) => {
+    setFormData({
+      ...formData,
+      preferredLocations: (formData.preferredLocations || []).filter(
+        (location) => location !== locationToRemove
+      ),
+    });
+  };
+
+  const preferredLocations = formData.preferredLocations || [];
+  const hasReachedPreferredLocationLimit = preferredLocations.length >= 5;
 
   const updateMutation = useMutation({
     mutationFn: updateProfile,
@@ -53,7 +198,23 @@ export default function ProfileDetailsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+
+    if (!formData.currentCity?.trim()) {
+      toast({
+        title: "Current city required",
+        description: "Please select your current city. If not listed, choose Other and mention it.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload: UpdateProfileData = {
+      ...formData,
+      dob: formData.dob || undefined,
+      preferredLocations: (formData.preferredLocations || []).slice(0, 5),
+    };
+
+    updateMutation.mutate(payload);
   };
 
   if (isLoading) {
@@ -95,6 +256,19 @@ export default function ProfileDetailsPage() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input
+                    id="dob"
+                    type="date"
+                    value={formData.dob || ""}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="phone">Phone *</Label>
                   <Input
                     id="phone"
@@ -105,6 +279,25 @@ export default function ProfileDetailsPage() {
                     title="Enter valid 10-digit Indian mobile number"
                     required
                   />
+                </div>
+                <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY") =>
+                      setFormData({ ...formData, gender: value })
+                    }
+                  >
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="PREFER_NOT_TO_SAY">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -121,52 +314,145 @@ export default function ProfileDetailsPage() {
 
               <div>
                 <Label htmlFor="currentCity">Current City *</Label>
+                <Select
+                  value={selectedCurrentCity}
+                  onValueChange={(value) => {
+                    setSelectedCurrentCity(value);
+
+                    if (value === OTHER_CITY_OPTION) {
+                      setFormData({ ...formData, currentCity: customCurrentCity });
+                      return;
+                    }
+
+                    setCustomCurrentCity("");
+                    setFormData({ ...formData, currentCity: value });
+                  }}
+                >
+                  <SelectTrigger id="currentCity">
+                    <SelectValue placeholder="Select your current city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MAJOR_INDIAN_CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_CITY_OPTION}>Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedCurrentCity === OTHER_CITY_OPTION && (
+                <div>
+                  <Label htmlFor="customCurrentCity">Mention City *</Label>
+                  <Input
+                    id="customCurrentCity"
+                    value={customCurrentCity}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCustomCurrentCity(value);
+                      setFormData({ ...formData, currentCity: value });
+                    }}
+                    placeholder="Enter your city"
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="preferredLocations">Preferred Locations (up to 5)</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value=""
+                    onValueChange={handleAddPreferredLocation}
+                    disabled={hasReachedPreferredLocationLimit}
+                  >
+                    <SelectTrigger id="preferredLocations" className="flex-1">
+                      <SelectValue placeholder="Select preferred city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MAJOR_INDIAN_CITIES.map((city) => (
+                        <SelectItem
+                          key={city}
+                          value={city}
+                          disabled={preferredLocations.includes(city)}
+                        >
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select city from dropdown. It gets added instantly. Maximum 5 locations can be selected.
+                </p>
+                {hasReachedPreferredLocationLimit && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    You have selected 5 preferred locations. Remove one to add another.
+                  </p>
+                )}
+                {preferredLocations.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {preferredLocations.map((location) => (
+                      <div
+                        key={location}
+                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm"
+                      >
+                        <span>{location}</span>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => handleRemovePreferredLocation(location)}
+                          aria-label={`Remove ${location}`}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="totalExperience">Total Experience (years, min 10)</Label>
                 <Input
-                  id="currentCity"
-                  value={formData.currentCity}
-                  onChange={(e) => setFormData({ ...formData, currentCity: e.target.value })}
-                  placeholder="Mumbai"
-                  required
+                  id="totalExperience"
+                  type="number"
+                  value={formData.totalExperience}
+                  onChange={(e) => setFormData({ ...formData, totalExperience: parseInt(e.target.value) || 10 })}
+                  min="10"
+                  max="50"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="totalExperience">Total Experience (years)</Label>
-                  <Input
-                    id="totalExperience"
-                    type="number"
-                    value={formData.totalExperience}
-                    onChange={(e) => setFormData({ ...formData, totalExperience: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    max="50"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="noticePeriod">Notice Period (days)</Label>
-                  <Input
-                    id="noticePeriod"
-                    type="number"
-                    value={formData.noticePeriod}
-                    onChange={(e) => setFormData({ ...formData, noticePeriod: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    max="365"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="currentCTC">Current CTC (₹)</Label>
+                  <Label htmlFor="currentCTC">Current CTC (₹, min 20 lacs)</Label>
                   <Input
                     id="currentCTC"
                     type="number"
                     value={formData.currentCTC}
-                    onChange={(e) => setFormData({ ...formData, currentCTC: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    placeholder="1200000"
+                    onChange={(e) =>
+                      setFormData({ ...formData, currentCTC: parseInt(e.target.value) || 2000000 })
+                    }
+                    min="2000000"
+                    placeholder="2000000"
                   />
                   <p className="text-xs text-muted-foreground mt-1">Enter annual salary in rupees</p>
+                </div>
+                <div>
+                  <Label htmlFor="currentAnnualFixedCTC">Current Annual Fixed CTC (₹, min 20 lacs)</Label>
+                  <Input
+                    id="currentAnnualFixedCTC"
+                    type="number"
+                    value={formData.currentAnnualFixedCTC}
+                    onChange={(e) =>
+                      setFormData({ ...formData, currentAnnualFixedCTC: parseInt(e.target.value) || 2000000 })
+                    }
+                    min="2000000"
+                    placeholder="2000000"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Enter annual fixed salary in rupees</p>
                 </div>
                 <div>
                   <Label htmlFor="expectedCTC">Expected CTC (₹)</Label>

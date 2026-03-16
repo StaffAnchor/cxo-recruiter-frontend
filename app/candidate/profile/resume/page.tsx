@@ -76,7 +76,7 @@ export default function ResumePage() {
         <Card>
           <CardHeader>
             <CardTitle>Resume</CardTitle>
-            <CardDescription>Upload your resume (PDF, DOC, DOCX - Max 10MB)</CardDescription>
+            <CardDescription>Upload your resume (PDF - Max 10MB)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {profile?.resumeUrl ? (
@@ -139,7 +139,7 @@ export default function ResumePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept=".pdf"
               onChange={handleFileSelect}
               className="hidden"
             />
