@@ -10,6 +10,7 @@ export interface SearchableOption {
   value: string;
   label: string;
   meta?: string; // optional badge text (e.g., institute type)
+  disabled?: boolean;
 }
 
 interface SearchableSelectProps {
@@ -54,6 +55,10 @@ export function SearchableSelect({
   }, []);
 
   const handleSelect = (option: SearchableOption) => {
+    if (option.disabled) {
+      return;
+    }
+
     onChange(option.value);
     setOpen(false);
     setQuery("");
@@ -112,7 +117,10 @@ export function SearchableSelect({
                   key={option.value}
                   onClick={() => handleSelect(option)}
                   className={cn(
-                    "flex cursor-pointer items-center justify-between px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
+                    "flex items-center justify-between px-3 py-2 text-sm",
+                    option.disabled
+                      ? "cursor-not-allowed text-muted-foreground/60"
+                      : "cursor-pointer hover:bg-accent hover:text-accent-foreground",
                     value === option.value && "bg-accent/50 font-medium"
                   )}
                 >

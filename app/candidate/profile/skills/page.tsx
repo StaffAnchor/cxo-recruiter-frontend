@@ -66,6 +66,11 @@ export default function SkillsPage() {
     queryFn: () => getSkills(),
   });
 
+  const selectedSkillNames = useMemo(
+    () => new Set((profile?.skills || []).map((skill) => skill.skillName.toLowerCase())),
+    [profile?.skills]
+  );
+
   const selectedSkillName = useMemo(
     () => availableSkills.find((skill) => skill.id === selectedSkillId)?.name,
     [availableSkills, selectedSkillId]
@@ -108,6 +113,7 @@ export default function SkillsPage() {
                 options={availableSkills.map((skill) => ({
                   value: skill.id,
                   label: skill.name,
+                  disabled: selectedSkillNames.has(skill.name.toLowerCase()),
                 }))}
                 value={selectedSkillId}
                 onChange={setSelectedSkillId}
