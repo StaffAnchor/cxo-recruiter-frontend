@@ -30,9 +30,9 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
     phone: profile?.phone || "",
     linkedin: profile?.linkedin || "",
     currentCity: profile?.currentCity || "",
-    totalExperience: profile?.totalExperience || 0,
-    currentCTC: profile?.currentCTC || 0,
-    expectedCTC: profile?.expectedCTC || 0,
+    totalExperience: profile?.totalExperience ?? 0,
+    currentCTC: profile?.currentCTC ?? 20,
+    expectedCTC: profile?.expectedCTC ?? 0,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -191,23 +191,25 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="currentCTC">Current CTC (₹)</Label>
+                      <Label htmlFor="currentCTC">Current CTC (Lacs, 20 to 300)</Label>
                       <Input
                         id="currentCTC"
                         type="number"
                         value={formData.currentCTC}
-                        onChange={(e) => setFormData({ ...formData, currentCTC: parseInt(e.target.value) || 0 })}
-                        min="0"
+                        onChange={(e) => setFormData({ ...formData, currentCTC: parseInt(e.target.value) || 20 })}
+                        min="20"
+                        max="300"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="expectedCTC">Expected CTC (₹)</Label>
+                      <Label htmlFor="expectedCTC">Expected CTC (Lacs, below 300)</Label>
                       <Input
                         id="expectedCTC"
                         type="number"
                         value={formData.expectedCTC}
                         onChange={(e) => setFormData({ ...formData, expectedCTC: parseInt(e.target.value) || 0 })}
                         min="0"
+                        max="299"
                       />
                     </div>
                   </div>
@@ -243,7 +245,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
               <DollarSign className="w-3 h-3" />
               Current CTC
             </div>
-            <p className="font-semibold">₹{(profile?.currentCTC / 100000).toFixed(1)}L</p>
+            <p className="font-semibold">{profile?.currentCTC} L</p>
           </div>
         )}
         {profile?.expectedCTC !== null && profile?.expectedCTC !== undefined && (
@@ -252,7 +254,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
               <DollarSign className="w-3 h-3" />
               Expected CTC
             </div>
-            <p className="font-semibold">₹{(profile?.expectedCTC / 100000).toFixed(1)}L</p>
+            <p className="font-semibold">{profile?.expectedCTC} L</p>
           </div>
         )}
         {profile?.phone && (

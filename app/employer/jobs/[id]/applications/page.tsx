@@ -207,7 +207,9 @@ export default function JobApplicationsPage() {
                       <div className="text-sm font-semibold mb-2">Education</div>
                       {application.candidate.education.slice(0, 2).map((edu, idx) => (
                         <div key={idx} className="text-sm mb-1">
-                          {edu.degree} {edu.specialization && `in ${edu.specialization}`} from {edu.university} ({edu.graduationYear})
+                          {(edu.degreeRef?.name ?? "Degree")}
+                          {edu.specializationRef?.name && ` in ${edu.specializationRef.name}`}
+                          {` from ${edu.instituteName ?? edu.institute?.name ?? "Institute"} (${edu.graduationYear})`}
                         </div>
                       ))}
                     </div>

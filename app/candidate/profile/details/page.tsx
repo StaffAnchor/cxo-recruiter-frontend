@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +75,7 @@ export default function ProfileDetailsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["candidateProfile"],
@@ -90,21 +91,44 @@ export default function ProfileDetailsPage() {
     preferredLocations: [],
     currentCity: "",
     totalExperience: 10,
-    currentCTC: 2000000,
-    currentAnnualFixedCTC: 2000000,
+    currentCTC: 20,
+    currentAnnualFixedCTC: 20,
     expectedCTC: 0,
   });
   const [selectedCurrentCity, setSelectedCurrentCity] = useState<string>("");
   const [customCurrentCity, setCustomCurrentCity] = useState<string>("");
 
-  useEffect(() => {
+  const formatDate = (value: string | null | undefined): string => {
+    if (!value) {
+      return "Not provided";
+    }
+
+    return new Date(value).toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatGender = (value: string | null | undefined): string => {
+    if (!value) {
+      return "Not provided";
+    }
+
+    return value
+      .toLowerCase()
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  };
+
+  const resetFormFromProfile = useCallback(() => {
     if (!profile) {
       return;
     }
 
     const normalizedProfileCity = normalizeCurrentCity(profile.currentCity);
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData({
       fullName: profile.fullName || "",
       dob: profile.dob ? profile.dob.split("T")[0] : "",
@@ -113,10 +137,10 @@ export default function ProfileDetailsPage() {
       linkedin: profile.linkedin || "",
       preferredLocations: profile.preferredLocations || [],
       currentCity: normalizedProfileCity,
-      totalExperience: profile.totalExperience || 10,
-      currentCTC: profile.currentCTC || 2000000,
-      currentAnnualFixedCTC: profile.currentAnnualFixedCTC || 2000000,
-      expectedCTC: profile.expectedCTC || 0,
+      totalExperience: profile.totalExperience ?? 10,
+      currentCTC: profile.currentCTC ?? 20,
+      currentAnnualFixedCTC: profile.currentAnnualFixedCTC ?? 20,
+      expectedCTC: profile.expectedCTC ?? 0,
     });
 
     if (!normalizedProfileCity) {
@@ -131,8 +155,15 @@ export default function ProfileDetailsPage() {
       setSelectedCurrentCity(OTHER_CITY_OPTION);
       setCustomCurrentCity(normalizedProfileCity);
     }
-
   }, [profile]);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetFormFromProfile();
+  }, [profile, resetFormFromProfile]);
 
   const handleAddPreferredLocation = (selectedLocation: string) => {
     if (!selectedLocation) {
@@ -179,13 +210,14 @@ export default function ProfileDetailsPage() {
 
   const updateMutation = useMutation({
     mutationFn: updateProfile,
-    onSuccess: () => {
+    onSuccess: (updatedProfile) => {
+      queryClient.setQueryData(["candidateProfile"], updatedProfile);
       queryClient.invalidateQueries({ queryKey: ["candidateProfile"] });
       toast({
         title: "Success",
         description: "Profile updated successfully",
       });
-      router.push("/candidate/dashboard");
+      setIsEditing(false);
     },
     onError: (error: Error) => {
       toast({
@@ -217,6 +249,11 @@ export default function ProfileDetailsPage() {
     updateMutation.mutate(payload);
   };
 
+  const handleCancelEdit = () => {
+    resetFormFromProfile();
+    setIsEditing(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -239,10 +276,22 @@ export default function ProfileDetailsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Profile Details</CardTitle>
-            <CardDescription>Update your personal and professional information</CardDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Profile Details</CardTitle>
+                <CardDescription>
+                  {isEditing ? "Update your personal and professional information" : "View your personal and professional information"}
+                </CardDescription>
+              </div>
+              {!isEditing && (
+                <Button type="button" onClick={() => setIsEditing(true)}>
+                  Edit Profile
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
+            {isEditing ? (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -427,44 +476,45 @@ export default function ProfileDetailsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="currentCTC">Current CTC (₹, min 20 lacs)</Label>
+                  <Label htmlFor="currentCTC">Current CTC (Lacs, min 20)</Label>
                   <Input
                     id="currentCTC"
                     type="number"
                     value={formData.currentCTC}
                     onChange={(e) =>
-                      setFormData({ ...formData, currentCTC: parseInt(e.target.value) || 2000000 })
+                      setFormData({ ...formData, currentCTC: parseInt(e.target.value) || 20 })
                     }
-                    min="2000000"
-                    placeholder="2000000"
+                    min="20"
+                    max="300"
+                    placeholder="20"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Enter annual salary in rupees</p>
+                  <p className="text-xs text-muted-foreground mt-1">Enter annual salary in lacs</p>
                 </div>
                 <div>
-                  <Label htmlFor="currentAnnualFixedCTC">Current Annual Fixed CTC (₹, min 20 lacs)</Label>
+                  <Label htmlFor="currentAnnualFixedCTC">Current Annual Fixed CTC (Lacs)</Label>
                   <Input
                     id="currentAnnualFixedCTC"
                     type="number"
                     value={formData.currentAnnualFixedCTC}
                     onChange={(e) =>
-                      setFormData({ ...formData, currentAnnualFixedCTC: parseInt(e.target.value) || 2000000 })
+                      setFormData({ ...formData, currentAnnualFixedCTC: parseInt(e.target.value) || 20 })
                     }
-                    min="2000000"
-                    placeholder="2000000"
+                    placeholder="20"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Enter annual fixed salary in rupees</p>
+                  <p className="text-xs text-muted-foreground mt-1">Enter annual fixed salary in lacs</p>
                 </div>
                 <div>
-                  <Label htmlFor="expectedCTC">Expected CTC (₹)</Label>
+                  <Label htmlFor="expectedCTC">Expected CTC (Lacs)</Label>
                   <Input
                     id="expectedCTC"
                     type="number"
                     value={formData.expectedCTC}
                     onChange={(e) => setFormData({ ...formData, expectedCTC: parseInt(e.target.value) || 0 })}
                     min="0"
-                    placeholder="1500000"
+                    max="299"
+                    placeholder="30"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Enter annual salary in rupees</p>
+                  <p className="text-xs text-muted-foreground mt-1">Enter annual salary in lacs</p>
                 </div>
               </div>
 
@@ -476,12 +526,115 @@ export default function ProfileDetailsPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push("/candidate/dashboard")}
+                  onClick={handleCancelEdit}
+                  disabled={updateMutation.isPending}
                 >
                   Cancel
                 </Button>
               </div>
             </form>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Full Name</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">{profile?.fullName || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date of Birth</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">{formatDate(profile?.dob)}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Phone</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">{profile?.phone || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">{formatGender(profile?.gender)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>LinkedIn Profile</Label>
+                  {profile?.linkedin ? (
+                    <a
+                      href={profile.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm inline-block py-2 px-3 bg-muted rounded-md text-blue-600 hover:underline"
+                    >
+                      {profile.linkedin}
+                    </a>
+                  ) : (
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">Not provided</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Current City</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">{profile?.currentCity || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Total Experience</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">{profile?.totalExperience ?? "Not provided"}{profile?.totalExperience !== null && profile?.totalExperience !== undefined ? " years" : ""}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Preferred Locations</Label>
+                  {profile?.preferredLocations && profile.preferredLocations.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 py-2 px-3 bg-muted rounded-md">
+                      {profile.preferredLocations.map((location) => (
+                        <span
+                          key={location}
+                          className="inline-flex items-center rounded-full border bg-background px-2.5 py-0.5 text-xs"
+                        >
+                          {location}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">Not provided</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Current CTC</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">
+                      {profile?.currentCTC !== null && profile?.currentCTC !== undefined ? `${profile.currentCTC} Lacs` : "Not provided"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Current Annual Fixed CTC</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">
+                      {profile?.currentAnnualFixedCTC !== null && profile?.currentAnnualFixedCTC !== undefined ? `${profile.currentAnnualFixedCTC} Lacs` : "Not provided"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Expected CTC</Label>
+                    <p className="text-sm py-2 px-3 bg-muted rounded-md">
+                      {profile?.expectedCTC !== null && profile?.expectedCTC !== undefined ? `${profile.expectedCTC} Lacs` : "Not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Profile Created</Label>
+                    <p className="text-sm">{formatDate(profile?.createdAt)}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Last Updated</Label>
+                    <p className="text-sm">{formatDate(profile?.updatedAt)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

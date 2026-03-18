@@ -136,6 +136,12 @@ export default function AdminDashboard() {
             >
               All Applications
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/admin/candidates")}
+            >
+              Candidates
+            </Button>
           </nav>
           <div className="flex items-center space-x-4">
             

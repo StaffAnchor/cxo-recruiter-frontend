@@ -1,21 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, X } from "lucide-react";
-import { getProfile, addSkill, removeSkill } from "@/lib/api/candidate";
+import { getProfile, addSkills, removeSkill } from "@/lib/api/candidate";
+import { getSkills } from "@/lib/api/meta";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function SkillsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [newSkill, setNewSkill] = useState("");
+  const [selectedSkillId, setSelectedSkillId] = useState("");
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["candidateProfile"],
@@ -23,11 +24,11 @@ export default function SkillsPage() {
   });
 
   const addMutation = useMutation({
-    mutationFn: addSkill,
+    mutationFn: addSkills,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidateProfile"] });
       toast({ title: "Success", description: "Skill added successfully" });
-      setNewSkill("");
+      setSelectedSkillId("");
     },
     onError: (error: Error) => {
       toast({
@@ -55,10 +56,27 @@ export default function SkillsPage() {
 
   const handleAddSkill = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newSkill.trim()) {
-      addMutation.mutate({ skillName: newSkill.trim() });
+    if (selectedSkillId) {
+      addMutation.mutate({ skillIds: [selectedSkillId] });
     }
   };
+
+  const { data: availableSkills = [], isLoading: isLoadingSkills } = useQuery({
+    queryKey: ["metaSkills"],
+    queryFn: () => getSkills(),
+  });
+
+  const selectedSkillName = useMemo(
+    () => availableSkills.find((skill) => skill.id === selectedSkillId)?.name,
+    [availableSkills, selectedSkillId]
+  );
+
+  const selectedAlreadyAdded = Boolean(
+    selectedSkillName &&
+      profile?.skills?.some(
+        (skill) => skill.skillName.toLowerCase() === selectedSkillName.toLowerCase()
+      )
+  );
 
   if (isLoading) {
     return (
@@ -82,23 +100,30 @@ export default function SkillsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Skills</CardTitle>
-            <CardDescription>Add your professional skills (min 2 characters, max 50)</CardDescription>
+            <CardDescription>Select your professional skills from the master list</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Add Skill Form */}
-            <form onSubmit={handleAddSkill} className="flex gap-2">
-              <Input
-                value={newSkill}
-                onChange={(e) => setNewSkill(e.target.value)}
-                placeholder="Enter skill name"
-                minLength={2}
-                maxLength={50}
+            <form onSubmit={handleAddSkill} className="space-y-3">
+              <SearchableSelect
+                options={availableSkills.map((skill) => ({
+                  value: skill.id,
+                  label: skill.name,
+                }))}
+                value={selectedSkillId}
+                onChange={setSelectedSkillId}
+                placeholder={isLoadingSkills ? "Loading skills..." : "Select a skill"}
+                disabled={isLoadingSkills}
               />
-              <Button type="submit" disabled={addMutation.isPending || !newSkill.trim()}>
+              <Button
+                type="submit"
+                disabled={addMutation.isPending || !selectedSkillId || selectedAlreadyAdded}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add
               </Button>
+              {selectedAlreadyAdded && (
+                <p className="text-sm text-muted-foreground">This skill is already added to your profile.</p>
+              )}
             </form>
 
             {/* Skills List */}
@@ -127,22 +152,7 @@ export default function SkillsPage() {
               </div>
             )}
 
-            <div className="pt-4 border-t">
-              <h4 className="font-medium mb-2">Skill suggestions:</h4>
-              <div className="flex flex-wrap gap-2">
-                {["JavaScript", "React", "Node.js", "Python", "SQL", "AWS", "Leadership", "Project Management"].map((suggestion) => (
-                  <Button
-                    key={suggestion}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setNewSkill(suggestion)}
-                    disabled={profile?.skills?.some((s) => s.skillName.toLowerCase() === suggestion.toLowerCase())}
-                  >
-                    {suggestion}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            
           </CardContent>
         </Card>
       </div>

@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, X } from "lucide-react";
-import { addSkill, removeSkill, type CandidateSkill } from "@/lib/api/candidate";
+import { addSkills, removeSkill, type CandidateSkill } from "@/lib/api/candidate";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { getSkills } from "@/lib/api/meta";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface SkillsSectionProps {
   skills: CandidateSkill[];
@@ -18,19 +19,21 @@ interface SkillsSectionProps {
 
 export function SkillsSection({ skills }: SkillsSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [skillName, setSkillName] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedSkillId, setSelectedSkillId] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const addMutation = useMutation({
-    mutationFn: addSkill,
+    mutationFn: addSkills,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidateProfile"] });
       toast({
         title: "Success",
         description: "Skill added successfully",
       });
-      setSkillName("");
+      setSearch("");
+      setSelectedSkillId("");
       setIsOpen(false);
     },
     onError: (error: Error) => {
@@ -60,10 +63,26 @@ export function SkillsSection({ skills }: SkillsSectionProps) {
     },
   });
 
+  const { data: availableSkills = [], isLoading: isLoadingSkills } = useQuery({
+    queryKey: ["metaSkills", search],
+    queryFn: () => getSkills(search),
+    enabled: isOpen,
+  });
+
+  const selectedSkillName = useMemo(
+    () => availableSkills.find((skill) => skill.id === selectedSkillId)?.name,
+    [availableSkills, selectedSkillId]
+  );
+
+  const selectedAlreadyAdded = Boolean(
+    selectedSkillName &&
+      skills.some((skill) => skill.skillName.toLowerCase() === selectedSkillName.toLowerCase())
+  );
+
   const handleAddSkill = (e: React.FormEvent) => {
     e.preventDefault();
-    if (skillName.trim()) {
-      addMutation.mutate({ skillName: skillName.trim() });
+    if (selectedSkillId) {
+      addMutation.mutate({ skillIds: [selectedSkillId] });
     }
   };
 
@@ -84,18 +103,29 @@ export function SkillsSection({ skills }: SkillsSectionProps) {
             </DialogHeader>
             <form onSubmit={handleAddSkill} className="space-y-4">
               <div>
-                <Label htmlFor="skillName">Skill Name</Label>
                 <Input
-                  id="skillName"
-                  value={skillName}
-                  onChange={(e) => setSkillName(e.target.value)}
-                  placeholder="e.g., React.js, Python, Leadership"
-                  required
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search skills"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={addMutation.isPending}>
+              <SearchableSelect
+                options={availableSkills.map((skill) => ({ value: skill.id, label: skill.name }))}
+                value={selectedSkillId}
+                onChange={setSelectedSkillId}
+                placeholder={isLoadingSkills ? "Loading skills..." : "Select a skill"}
+                disabled={isLoadingSkills}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={addMutation.isPending || !selectedSkillId || selectedAlreadyAdded}
+              >
                 {addMutation.isPending ? "Adding..." : "Add Skill"}
               </Button>
+              {selectedAlreadyAdded && (
+                <p className="text-sm text-muted-foreground">This skill is already in your profile.</p>
+              )}
             </form>
           </DialogContent>
         </Dialog>

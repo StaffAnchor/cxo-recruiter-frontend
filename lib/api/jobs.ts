@@ -50,9 +50,10 @@ export interface JobApplication {
     resumeUrl: string;
     skills: Array<{ skillName: string }>;
     education: Array<{
-      degree: string;
-      specialization: string;
-      university: string;
+      degreeRef?: { id: string; name: string } | null;
+      specializationRef?: { id: string; name: string } | null;
+      institute?: { id: string; name: string; type: string } | null;
+      instituteName?: string | null;
       graduationYear: number;
     }>;
     experience: Array<{

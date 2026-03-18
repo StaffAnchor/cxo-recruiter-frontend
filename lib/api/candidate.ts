@@ -27,17 +27,24 @@ export interface CandidateProfile {
 
 export interface CandidateSkill {
   id: string;
-  candidateId: string;
+  skillId?: string;
+  name?: string;
   skillName: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface CandidateEducation {
   id: string;
   candidateId: string;
-  degree: string;
-  specialization: string | null;
-  university: string;
+  instituteName: string | null;
+  // Structured FK fields
+  degreeId: string | null;
+  specializationId: string | null;
+  instituteId: string | null;
+  // Expanded relations
+  degreeRef: { id: string; name: string } | null;
+  specializationRef: { id: string; name: string } | null;
+  institute: { id: string; name: string; type: string } | null;
   graduationYear: number;
   createdAt: string;
   updatedAt: string;
@@ -77,20 +84,26 @@ export interface UpdateProfileData {
 }
 
 export interface AddSkillData {
-  skillName: string;
+  skillIds: string[];
+}
+
+export interface UpdateSkillsData {
+  skillIds: string[];
 }
 
 export interface AddEducationData {
-  degree: string;
-  specialization?: string;
-  university: string;
+  degreeId: string;
+  specializationId?: string;
+  instituteId?: string;
+  customInstituteName?: string;
   graduationYear: number;
 }
 
 export interface UpdateEducationData {
-  degree?: string;
-  specialization?: string;
-  university?: string;
+  degreeId?: string;
+  specializationId?: string | null;
+  instituteId?: string;
+  customInstituteName?: string | null;
   graduationYear?: number;
 }
 
@@ -153,6 +166,17 @@ export const uploadResume = async (file: File): Promise<{ resumeUrl: string }> =
 // Skills Management
 export const addSkill = async (data: AddSkillData): Promise<CandidateSkill> => {
   const response = await apiClient.post('/api/candidate/skills', data);
+  const skills = response.data.data as CandidateSkill[];
+  return skills[0];
+};
+
+export const addSkills = async (data: AddSkillData): Promise<CandidateSkill[]> => {
+  const response = await apiClient.post('/api/candidate/skills', data);
+  return response.data.data;
+};
+
+export const updateSkills = async (data: UpdateSkillsData): Promise<CandidateSkill[]> => {
+  const response = await apiClient.put('/api/candidate/skills', data);
   return response.data.data;
 };
 
